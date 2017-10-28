@@ -1,6 +1,6 @@
 {
   "name": "filru",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "least-recently-used cache for files on disk",
   "main": "index.js",
   "dependencies": {
