@@ -12,6 +12,12 @@ function defaultLoad() {
 
 class Filru {
   constructor(dir, maxBytes, loadFunc) {
+    if (!dir || typeof dir !== 'string') {
+      throw new TypeError('filru: dir is invalid');
+    }
+    if (!maxBytes || typeof maxBytes !== 'number' || maxBytes < 1) {
+      throw new TypeError('filru: maxBytes must be a number greater than 0');
+    }
     this.dir = dir;
     this.maxBytes = maxBytes;
     this.stopped = false;
@@ -50,51 +56,60 @@ class Filru {
   }
 
   get(key) {
-    const h = this.hash(key);
+    const h = Filru.hash(key);
     const fullpath = this.dir + '/' + h;
-    return new Promise((resolve, reject) => {
+    return new Promise((resolve) => {
       fs.readFile(fullpath, (err, buffer) => {
         if (err) {
-          debug('get soft fail:', { key, h, err });
+          debug('get soft fail:', { key, fullpath, err });
           return this.load(key);
         }
         this.touch(key);
-        resolve();
+        resolve(buffer);
       });
     });
   }
 
   touch(key) {
-    const h = this.hash(key);
+    const h = Filru.hash(key);
     const fullpath = this.dir + '/' + h;
     const newTime = new Date();
     fs.utimes(h, newTime, newTime, (err) => {
       if (err) {
-        debug('touch failed', { key, h, err });
+        debug('touch failed', { fullpath, err });
       }
     });
   }
 
   /**
-   *
    * @param key
    * @return {Promise}
    */
   del(key) {
-    const h = this.hash(key);
-    const fullpath = this.dir + '/' + h;
+    const h = Filru.hash(key);
+    return this._unlink(this.dir + '/' + h);
+  }
+
+  _unlink(fullpath) {
     return new Promise((resolve, reject) => {
       fs.unlink(fullpath, (err) => {
         if (err) {
+          debug('delete failed', { fullpath, err });
           reject(err);
           return;
         }
+        debug('delete ok', { fullpath });
         resolve();
       });
     });
   }
 
   run() {
+    const runNext = () => {
+      if (!this.stopped) {
+        this._timeout = setTimeout(() => this.run(), PRUNE_INTERVAL_MS);
+      }
+    };
     return new Promise((resolve, reject) => {
       fs.readdir(this.dir, (err, files) => {
         if (err) {
@@ -112,22 +127,20 @@ class Filru {
             for (; i < totalFiles; i++) {
               file = filesSorted[i];
               sizeUpTo += file.size;
+              debug(sizeUpTo, file, this.maxBytes, sizeUpTo > this.maxBytes);
               if (sizeUpTo > this.maxBytes) {
                 // delete the remaining files
                 debug('scheduling removal', { file });
-                deletions.push(this.del(file.name));
+                deletions.push(this._unlink(file.name));
               }
             }
+            debug('run will delete', deletions.length, { totalSize: sizeUpTo, maxBytes: this.maxBytes });
             return Promise.all(deletions);
           })
-          .then(() => {
-            if (!this.stopped) {
-              this._timeout = setTimeout(() => this.run(), PRUNE_INTERVAL_MS);
-            }
-          })
+          .then(runNext)
           .catch((err) => {
             debug('run failed', err);
-            throw err;
+            runNext();
           });
       });
     });
