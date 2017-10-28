@@ -2,9 +2,7 @@
 
 A disk based LRU cache. Nothing is kept in memory.
 
-It was initially intended to be a simplistic caching layer for frequent HTTP requests.
-
-Since the underlying OS file system caching is much faster than doing a network request.  
+Initially intended to be a simplistic caching layer for frequent HTTP requests, since OS file system caching is much faster than doing a network request.  
 
 ## Usage
 
@@ -24,22 +22,28 @@ const handleErr = (err) => {
 const maxBytes = 50 * 1024 * 1024; // 50 megabytes
 const f = new Filru('/tmp/filru', maxBytes);
 
-// optionally add a load function
+// optionally add a load function for when an object
+// is not found in the cache
 f.load = function customLoad(key) {
   // custom async load function must return a promise
   return Promise.resolve();
 };
 
-f.start();
-
-f.set('jimmy.txt', 'yo').catch(handleErr);
-f.get('jimmy.txt')
-    .then((buffer) => {
-      console.log('got jimmy:', buffer.toString('utf8')); // "yo"
-    })
-    .catch(handleErr);
-
-f.stop();
+f.start()
+  .then(() => {
+    // fill the cache
+    f.set('jimmy.txt', 'yo').catch(handleErr);
+    f.get('jimmy.txt')
+        .then((buffer) => {
+          console.log('got jimmy:', buffer.toString('utf8')); // "yo"
+        })
+        .catch(handleErr);
+    // stop cleanup job
+    f.stop();
+  })
+  .catch(err => {
+    throw err;
+  });
 ```
 
 ## Tests

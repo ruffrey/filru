@@ -6,7 +6,6 @@
   "dependencies": {
     "debug": "^3.1.0",
     "mkdirp": "^0.5.1",
-    "promise.series": "^0.2.0",
     "xxhashjs": "^0.2.1"
   },
   "devDependencies": {

@@ -1,7 +1,7 @@
+const fs = require('fs');
 const mkdirp = require('mkdirp');
-const promiseSeries = require('promise.series');
-const XXH = require('XXH');
-const debug = require('debug')('fileru');
+const XXH = require('xxhashjs');
+const debug = require('debug')('filru');
 
 const PRUNE_INTERVAL_MS = 60 * 1000;
 const HASH_SEED = 0xABCD;
@@ -110,13 +110,13 @@ class Filru {
             let file = null;
             let i = 0;
             for (; i < totalFiles; i++) {
-              file = totalFiles[i];
+              file = filesSorted[i];
+              sizeUpTo += file.size;
               if (sizeUpTo > this.maxBytes) {
                 // delete the remaining files
                 debug('scheduling removal', { file });
                 deletions.push(this.del(file.name));
               }
-              sizeUpTo += file.size;
             }
             return Promise.all(deletions);
           })
@@ -125,11 +125,16 @@ class Filru {
               this._timeout = setTimeout(() => this.run(), PRUNE_INTERVAL_MS);
             }
           })
-          .catch(reject);
+          .catch((err) => {
+            debug('run failed', err);
+            throw err;
+          });
       });
     });
   }
 }
+
+module.exports = Filru;
 
 /**
  * Return list of file stats in order of newest files first.
@@ -139,10 +144,11 @@ class Filru {
  * @return {Promise<Array<FilruStat>}
  */
 function statAllAndSort(dir, files) {
-  return promiseSeries(files.map(filename => doStat(dir + filename)))
+  const fullPaths = files.map(filename => dir + '/' + filename);
+  return forEachPromise(fullPaths, doStat)
     .then((allStats) => {
       allStats.sort((a, b) =>
-        (b.time - a.time));
+        (a.time - b.time));
       debug('statAllAndSort:', allStats.length, 'files sorted');
       return allStats;
     });
@@ -165,7 +171,8 @@ function doStat(fullpath) {
         time = stats.mtime.getTime();
         size = stats.size;
       }
-      resolve(new FilruStat(fullpath, time, size));
+      const fileStats = new FilruStat(fullpath, time, size);
+      resolve(fileStats);
     });
   });
 }
@@ -176,4 +183,17 @@ class FilruStat {
     this.time = time;
     this.size = size;
   }
+}
+
+function forEachPromise(items, fn) {
+  const results = [];
+  return items.reduce((promise, item) => {
+    return promise.then((result) => {
+      if (result) {
+        results.push(result);
+      }
+      return fn(item);
+    });
+  }, Promise.resolve())
+    .then(() => results);
 }
