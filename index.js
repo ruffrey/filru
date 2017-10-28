@@ -6,10 +6,6 @@ const debug = require('debug')('filru');
 const PRUNE_INTERVAL_MS = 60 * 1000;
 const HASH_SEED = 0xABCD;
 
-function defaultLoad() {
-  return Promise.resolve();
-}
-
 class Filru {
   constructor(dir, maxBytes, loadFunc) {
     if (!dir || typeof dir !== 'string') {
@@ -21,7 +17,7 @@ class Filru {
     this.dir = dir;
     this.maxBytes = maxBytes;
     this.stopped = false;
-    this.load = loadFunc || defaultLoad;
+    this.load = loadFunc;
 
     this._timeout = null;
   }
@@ -58,14 +54,34 @@ class Filru {
   get(key) {
     const h = Filru.hash(key);
     const fullpath = this.dir + '/' + h;
-    return new Promise((resolve) => {
+    return new Promise((resolve, reject) => {
       fs.readFile(fullpath, (err, buffer) => {
         if (err) {
-          debug('get soft fail:', { key, fullpath, err });
-          return this.load(key);
+          if (err.code === 'ENOENT' && this.load) {
+            debug('get soft fail, will load:', { key, fullpath });
+            return this.load(key);
+          }
+          debug('get fail', { key, fullpath, err });
+          reject(err);
+          return;
         }
         this.touch(key);
         resolve(buffer);
+      });
+    });
+  }
+
+  set(key, contents) {
+    const h = Filru.hash(key);
+    const fullpath = this.dir + '/' + h;
+    return new Promise((resolve, reject) => {
+      fs.writeFile(fullpath, contents, (err) => {
+        if (err) {
+          debug('set fail', { key, fullpath, err });
+          reject(err);
+          return;
+        }
+        resolve(Buffer.from(contents));
       });
     });
   }
@@ -74,7 +90,7 @@ class Filru {
     const h = Filru.hash(key);
     const fullpath = this.dir + '/' + h;
     const newTime = new Date();
-    fs.utimes(h, newTime, newTime, (err) => {
+    fs.utimes(fullpath, newTime, newTime, (err) => {
       if (err) {
         debug('touch failed', { fullpath, err });
       }
@@ -161,7 +177,7 @@ function statAllAndSort(dir, files) {
   return forEachPromise(fullPaths, doStat)
     .then((allStats) => {
       allStats.sort((a, b) =>
-        (a.time - b.time));
+        (b.time - a.time));
       debug('statAllAndSort:', allStats.length, 'files sorted');
       return allStats;
     });
