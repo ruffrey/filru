@@ -15,6 +15,7 @@ npm install filru
 
 ```javascript
 const Filru = require('filru');
+const require('request-promise-native'); // optional for loading async when not in cache
 const handleErr = (err) => {
   throw err;
 };
@@ -25,8 +26,8 @@ const f = new Filru('/tmp/filru', maxBytes);
 // optionally add a load function for when an object
 // is not found in the cache
 f.load = function customLoad(key) {
-  // custom async load function must return a promise
-  return Promise.resolve();
+  // Custom async load function must return a promise.
+  return request.get('https://my-site.com/' + key);
 };
 
 f.start()
