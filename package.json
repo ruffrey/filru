@@ -13,7 +13,8 @@
     "prettier": "^1.7.4"
   },
   "scripts": {
-    "test": "mocha test"
+    "test": "mocha test",
+    "lint": "prettier ."
   },
   "repository": {
     "type": "git",
