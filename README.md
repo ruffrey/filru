@@ -1,6 +1,6 @@
 # filru &nbsp;&nbsp; [![Build Status](https://travis-ci.org/ruffrey/filru.svg?branch=master)](https://travis-ci.org/ruffrey/filru)
 
-A disk based LRU cache. Nothing is kept in memory.
+A disk based LRU cache. Nothing is kept in memory. This has the benefit of persisting across application restarts.
 
 Initially intended to be a simplistic caching layer for frequent HTTP requests, since OS file system caching is much faster than doing a network request.
 
