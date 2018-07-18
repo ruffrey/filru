@@ -14,7 +14,7 @@
   },
   "scripts": {
     "test": "mocha test",
-    "lint": "prettier ."
+    "lint": "prettier --config .prettierrc *.js"
   },
   "repository": {
     "type": "git",

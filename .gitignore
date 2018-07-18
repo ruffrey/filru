@@ -1,3 +1,6 @@
+# this is a library!
+package-lock.json
+
 # webstorm
 .idea
 
@@ -59,4 +62,3 @@ typings/
 
 # dotenv environment variables file
 .env
-
