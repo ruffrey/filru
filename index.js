@@ -42,8 +42,8 @@ class Filru {
     this._timeout = null;
   }
 
-  hash(key) {
-    return XXH.h64(key, this.hashSeed).toString(16);
+  static hash(key, seed) {
+    return XXH.h64(key, seed).toString(16);
   }
 
   /**
@@ -72,7 +72,7 @@ class Filru {
   }
 
   get(key) {
-    const h = this.hash(key);
+    const h = Filru.hash(key, this.hashSeed);
     const fullpath = this.dir + "/" + h;
     return new Promise((resolve, reject) => {
       fs.readFile(fullpath, (err, buffer) => {
@@ -92,7 +92,7 @@ class Filru {
   }
 
   set(key, contents) {
-    const h = this.hash(key);
+    const h = Filru.hash(key, this.hashSeed);
     const fullpath = this.dir + "/" + h;
     return new Promise((resolve, reject) => {
       fs.writeFile(fullpath, contents, err => {
@@ -107,7 +107,7 @@ class Filru {
   }
 
   touch(key) {
-    const h = this.hash(key);
+    const h = Filru.hash(key, this.hashSeed);
     const fullpath = this.dir + "/" + h;
     const newTime = new Date();
     fs.utimes(fullpath, newTime, newTime, err => {
@@ -122,7 +122,7 @@ class Filru {
    * @return {Promise}
    */
   del(key) {
-    const h = this.hash(key);
+    const h = Filru.hash(key, this.hashSeed);
     return this._unlink(this.dir + "/" + h);
   }
 
