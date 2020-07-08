@@ -132,7 +132,7 @@ class Filru {
     });
   }
 
-  reset() {
+  clear() {
     return new Promise((resolve, reject) => {
       fs.readdir(this.dir, (err, files) => {
         if (err) {
