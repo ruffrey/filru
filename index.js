@@ -157,12 +157,12 @@ class Filru {
             // first see if any files are too old
             if (this.maxAge) {
               const nowMs = +new Date();
-              const oldestTime = new Date(nowMs - this.maxAge);
+              const oldestTime = +new Date(nowMs - this.maxAge);
               const deleteNames = [];
 
               for (; i < totalFiles; i++) {
                 file = filesSorted[i];
-                if (file.ctime < oldestTime) {
+                if (file.time < oldestTime) {
                   debug(sizeUpTo, file, this.maxBytes, sizeUpTo > this.maxBytes);
                   // delete the remaining files
                   debug("scheduling removal of old file", { file });
