@@ -127,7 +127,25 @@ class Filru {
           return;
         }
         debug("delete ok", { fullpath });
-        resolve();
+        resolve(fullpath);
+      });
+    });
+  }
+
+  clear() {
+    return new Promise((resolve, reject) => {
+      fs.readdir(this.dir, (err, files) => {
+        if (err) {
+          resolve(err);
+          return;
+        }
+
+        const fullPaths = files.map(filename => this.dir + "/" + filename);
+
+        forEachPromise(fullPaths, this._unlink).then(allPaths => {
+          debug("reset:", allPaths.length, "files deleted");
+          resolve();
+        });
       });
     });
   }
