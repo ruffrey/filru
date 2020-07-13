@@ -42,7 +42,7 @@ class Filru {
     this._timeout = null;
   }
 
-  static hash(key, seed) {
+  static hash(key, seed = 0xabcd) {
     return XXH.h64(key, seed).toString(16);
   }
 
