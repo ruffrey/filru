@@ -1,14 +1,21 @@
 # filru &nbsp;&nbsp; [![Build Status](https://travis-ci.org/ruffrey/filru.svg?branch=master)](https://travis-ci.org/ruffrey/filru)
 
-A disk based LRU cache. Nothing is kept in memory. This has the benefit of persisting across application restarts.
+A pure-disk based least-recently-used (LRU) cache.
 
-The cache is constrained by size (bytes) and optionally by file age.
+Nothing is kept in memory. This has the benefit of persisting across application restarts,
+and not taking up any RAM.
+
+The cache is constrained by size (bytes), and optionally by file age.
 
 ## Use Cases
 
-- a simplistic caching layer for frequent HTTP requests, since OS file system caching is much faster than doing a network request
-- caching the results of labor intensive actions
+filru is much slower than an in-memory cache, so use cases are:
+
+- a simplistic caching layer for frequent HTTP requests, since OS file system caching is much
+faster than doing a network request
+- caching the results of CPU-intensive operations
 - caching slow operations across multiple network requests
+- caching large items
 
 ## Usage
 
