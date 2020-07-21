@@ -3,17 +3,16 @@ const mkdirp = require("mkdirp");
 const XXH = require("xxhashjs");
 const debug = require("debug")("filru");
 
-const PRUNE_INTERVAL_MS = 60 * 1000;
-const HASH_SEED = 0xabcd;
-
 class Filru {
   /**
    * @param {String} dir - cache directory
    * @param {function(String)<Promise>} [loadFunc] - optional function returning a promise which resolves to the value to be cached based on the cache key
    * @param {Number} maxBytes - max allowed size of the cache on disk
    * @param {Number} [maxAge] - max allowed age of cached items in milliseconds
+   * @param {Number|String} [hashSeed] - seed used to hash filenames in the cache
+   * @param {Number} [pruneInterval] - interval to run cache invalidation
    */
-  constructor({ dir, maxBytes, loadFunc, maxAge = 0 }) {
+  constructor({ dir, maxBytes, loadFunc, maxAge = 0, hashSeed = 0xabcd, pruneInterval = 60 * 1000 }) {
     if (!dir || typeof dir !== "string") {
       throw new TypeError("filru: dir is invalid");
     }
@@ -25,17 +24,26 @@ class Filru {
         throw new TypeError("filru: maxAge must be a number greater than 0");
       }
     }
+    if (typeof hashSeed !== "number" && typeof hashSeed !== "string") {
+      throw new TypeError("filru: hashSeed must be a number or a string");
+    }
+    if (typeof pruneInterval !== "number" || pruneInterval < 1) {
+      throw new TypeError("filru: pruneInterval must be a number greater than 0");
+    }
+
     this.dir = dir;
     this.maxBytes = maxBytes;
     this.maxAge = maxAge;
+    this.hashSeed = hashSeed;
+    this.pruneInterval = pruneInterval;
     this.stopped = false;
     this.load = loadFunc;
 
     this._timeout = null;
   }
 
-  static hash(key) {
-    return XXH.h64(key, HASH_SEED).toString(16);
+  static hash(key, seed = 0xabcd) {
+    return XXH.h64(key, seed).toString(16);
   }
 
   /**
@@ -64,7 +72,7 @@ class Filru {
   }
 
   get(key) {
-    const h = Filru.hash(key);
+    const h = Filru.hash(key, this.hashSeed);
     const fullpath = this.dir + "/" + h;
     return new Promise((resolve, reject) => {
       fs.readFile(fullpath, (err, buffer) => {
@@ -84,7 +92,7 @@ class Filru {
   }
 
   set(key, contents) {
-    const h = Filru.hash(key);
+    const h = Filru.hash(key, this.hashSeed);
     const fullpath = this.dir + "/" + h;
     return new Promise((resolve, reject) => {
       fs.writeFile(fullpath, contents, err => {
@@ -99,7 +107,7 @@ class Filru {
   }
 
   touch(key) {
-    const h = Filru.hash(key);
+    const h = Filru.hash(key, this.hashSeed);
     const fullpath = this.dir + "/" + h;
     const newTime = new Date();
     fs.utimes(fullpath, newTime, newTime, err => {
@@ -114,7 +122,7 @@ class Filru {
    * @return {Promise}
    */
   del(key) {
-    const h = Filru.hash(key);
+    const h = Filru.hash(key, this.hashSeed);
     return this._unlink(this.dir + "/" + h);
   }
 
@@ -127,7 +135,25 @@ class Filru {
           return;
         }
         debug("delete ok", { fullpath });
-        resolve();
+        resolve(fullpath);
+      });
+    });
+  }
+
+  clear() {
+    return new Promise((resolve, reject) => {
+      fs.readdir(this.dir, (err, files) => {
+        if (err) {
+          resolve(err);
+          return;
+        }
+
+        const fullPaths = files.map(filename => this.dir + "/" + filename);
+
+        forEachPromise(fullPaths, this._unlink).then(allPaths => {
+          debug("reset:", allPaths.length, "files deleted");
+          resolve();
+        });
       });
     });
   }
@@ -135,7 +161,7 @@ class Filru {
   run() {
     const runNext = () => {
       if (!this.stopped) {
-        this._timeout = setTimeout(() => this.run(), PRUNE_INTERVAL_MS);
+        this._timeout = setTimeout(() => this.run(), this.pruneInterval);
       }
     };
     return new Promise((resolve, reject) => {
@@ -157,12 +183,12 @@ class Filru {
             // first see if any files are too old
             if (this.maxAge) {
               const nowMs = +new Date();
-              const oldestTime = new Date(nowMs - this.maxAge);
+              const oldestTime = +new Date(nowMs - this.maxAge);
               const deleteNames = [];
 
               for (; i < totalFiles; i++) {
                 file = filesSorted[i];
-                if (file.ctime < oldestTime) {
+                if (file.time < oldestTime) {
                   debug(sizeUpTo, file, this.maxBytes, sizeUpTo > this.maxBytes);
                   // delete the remaining files
                   debug("scheduling removal of old file", { file });

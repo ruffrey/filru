@@ -28,7 +28,9 @@ const handleErr = (err) => {
 
 const maxBytes = 50 * 1024 * 1024; // 50 megabytes
 const maxAge = 24 * 60 * 60 * 1000; // 1 day
-const f = new Filru({ dir: '/tmp/filru', maxBytes, maxAge });
+const hashSeed = 'cache4gold'; // optional, random seed string
+const pruneInterval = 1000 * 60 * 60; // optional, defaults to 1 hour
+const f = new Filru({ dir: '/tmp/filru', maxBytes, maxAge, hashSeed, pruneInterval });
 
 // optionally add a load function for when an object
 // is not found in the cache
