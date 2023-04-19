@@ -9,7 +9,7 @@
     "xxhashjs": "^0.2.1"
   },
   "devDependencies": {
-    "mocha": "^4.0.1",
+    "mocha": "^10.2.0",
     "prettier": "^1.7.4"
   },
   "scripts": {
